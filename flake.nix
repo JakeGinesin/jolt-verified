@@ -6,9 +6,10 @@
     rust-overlay.url = "github:oxalica/rust-overlay";
     rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
     flake-utils.url = "github:numtide/flake-utils";
+    verus-flake.url = "github:JakeGinesin/verus-flake";
   };
 
-  outputs = { self, nixpkgs, rust-overlay, flake-utils, ... }@inputs:
+  outputs = { self, nixpkgs, rust-overlay, flake-utils, verus-flake, ... }@inputs:
     
     flake-utils.lib.eachDefaultSystem (system:
       let
@@ -27,6 +28,7 @@
             rustToolchain
             pkgs.rust-analyzer  # For IDE support
             pkgs.cargo-watch    # For auto-reloading builds
+            verus-flake.packages.${system}.default
           ];
 
           nativeBuildInputs = [
