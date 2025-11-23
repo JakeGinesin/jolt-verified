@@ -116,6 +116,18 @@ prost = { version = "0.14", optional = true }
 bytemuck = "1.23.2"
 bytemuck_derive = "1.10.1"
 
+# builtin = { path = "verus/source/builtin" }
+# builtin_macros = { path = "verus/source/builtin_macros" }
+# vstd = { path = "verus/source/vstd" }
+
+# builtin = { path = "../verus/source/builtin" }
+verus_builtin_macros = "0.0.0-2025-11-16-0050"
+verus_builtin = "0.0.0-2025-08-12-1837"
+verus_prettyplease = "0.0.0-2025-11-16-0050"
+vstd = "0.0.0-2025-11-16-0050"
+# builtin_macros = { path = "../verus/source/builtin_macros" }
+# vstd = { path = "../verus/source/vstd" }
+
 [dev-dependencies]
 criterion.workspace = true
 iai-callgrind.workspace = true

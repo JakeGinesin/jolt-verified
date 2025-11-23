@@ -76,6 +76,9 @@ members = [
     "zklean-extractor",
     "z3-verifier",
 ]
+exclude = [
+    "verus"
+]
 
 [features]
 host = ["jolt-sdk/host"]
