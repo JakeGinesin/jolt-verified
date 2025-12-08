@@ -171,7 +171,7 @@ checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 [[package]]
 name = "ark-bn254"
 version = "0.5.0"
-source = "git+https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#c5ebe4c975c2243c3ef0fa89261c55ea5f1eb290"
+source = "git+https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b5f70317cd644638c49a7907da6cf79c5a4f4e0b"
 dependencies = [
  "ark-ec",
  "ark-ff",
@@ -182,7 +182,7 @@ dependencies = [
 [[package]]
 name = "ark-ec"
 version = "0.5.0"
-source = "git+https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#c5ebe4c975c2243c3ef0fa89261c55ea5f1eb290"
+source = "git+https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b5f70317cd644638c49a7907da6cf79c5a4f4e0b"
 dependencies = [
  "ahash",
  "ark-ff",
@@ -203,7 +203,7 @@ dependencies = [
 [[package]]
 name = "ark-ff"
 version = "0.5.0"
-source = "git+https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#c5ebe4c975c2243c3ef0fa89261c55ea5f1eb290"
+source = "git+https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b5f70317cd644638c49a7907da6cf79c5a4f4e0b"
 dependencies = [
  "allocative",
  "ark-ff-asm",
@@ -224,7 +224,7 @@ dependencies = [
 [[package]]
 name = "ark-ff-asm"
 version = "0.5.0"
-source = "git+https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#c5ebe4c975c2243c3ef0fa89261c55ea5f1eb290"
+source = "git+https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b5f70317cd644638c49a7907da6cf79c5a4f4e0b"
 dependencies = [
  "quote",
  "syn 2.0.110",
@@ -233,7 +233,7 @@ dependencies = [
 [[package]]
 name = "ark-ff-macros"
 version = "0.5.0"
-source = "git+https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#c5ebe4c975c2243c3ef0fa89261c55ea5f1eb290"
+source = "git+https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b5f70317cd644638c49a7907da6cf79c5a4f4e0b"
 dependencies = [
  "num-bigint",
  "num-traits",
@@ -256,7 +256,7 @@ dependencies = [
 [[package]]
 name = "ark-poly"
 version = "0.5.0"
-source = "git+https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#c5ebe4c975c2243c3ef0fa89261c55ea5f1eb290"
+source = "git+https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b5f70317cd644638c49a7907da6cf79c5a4f4e0b"
 dependencies = [
  "ahash",
  "ark-ff",
@@ -270,7 +270,7 @@ dependencies = [
 [[package]]
 name = "ark-serialize"
 version = "0.5.0"
-source = "git+https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#c5ebe4c975c2243c3ef0fa89261c55ea5f1eb290"
+source = "git+https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b5f70317cd644638c49a7907da6cf79c5a4f4e0b"
 dependencies = [
  "ark-serialize-derive 0.5.0 (git+https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout)",
  "ark-std",
@@ -294,7 +294,7 @@ dependencies = [
 [[package]]
 name = "ark-serialize-derive"
 version = "0.5.0"
-source = "git+https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#c5ebe4c975c2243c3ef0fa89261c55ea5f1eb290"
+source = "git+https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b5f70317cd644638c49a7907da6cf79c5a4f4e0b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2003,6 +2003,8 @@ dependencies = [
  "tracing",
  "tracing-chrome",
  "tracing-subscriber",
+ "verus_builtin",
+ "verus_builtin_macros",
 ]
 
 [[package]]
@@ -4373,6 +4375,47 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "verus_builtin"
+version = "0.0.0-2025-12-07-0054"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e83b30b06298351ce552909373b5c17caa59ece56d9605ecceaf5830bb7e187e"
+
+[[package]]
+name = "verus_builtin_macros"
+version = "0.0.0-2025-12-07-0054"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10da8352d708967c867ad9f51a3028af567e4aae519a78c9ca54d19be74631c1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.110",
+ "synstructure",
+ "verus_prettyplease",
+ "verus_syn",
+]
+
+[[package]]
+name = "verus_prettyplease"
+version = "0.0.0-2025-11-16-0050"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32f6851d9ddf5bfdd1c7a7abff8cb797df18b67b80c3da35e0cbfa939d725ef1"
+dependencies = [
+ "proc-macro2",
+ "verus_syn",
+]
+
+[[package]]
+name = "verus_syn"
+version = "0.0.0-2025-11-16-0050"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8fd239518d302792a2c1b2a6bfe2286268810b9627c5507fbc502ea3e88b805"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
+]
 
 [[package]]
 name = "wait-timeout"

@@ -1,4 +1,9 @@
 use std::fs::File;
+// use vstd::prelude::*;
+use verus_builtin_macros::verus;
+verus! {
+
+}
 
 use crate::{
     field::JoltField,
