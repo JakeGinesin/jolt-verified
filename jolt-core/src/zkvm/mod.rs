@@ -38,6 +38,7 @@ pub mod registers;
 pub mod spartan;
 pub mod verifier;
 pub mod witness;
+pub mod lookup_semantics;
 
 // Scoped CPU profiler for performance analysis. Feature-gated by "pprof".
 // Usage: let _guard = pprof_scope!("label");

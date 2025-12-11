@@ -5,6 +5,10 @@ use crate::zkvm::lookup_table::{or::OrTable, LookupTables};
 
 use super::{CircuitFlags, Flags, InstructionLookup, LookupQuery, NUM_CIRCUIT_FLAGS};
 
+use crate::utils::interleaving_spec::*;
+use crate::zkvm::lookup_semantics::*;
+use vstd::prelude::*;
+
 impl<const XLEN: usize> InstructionLookup<XLEN> for OR {
     fn lookup_table(&self) -> Option<LookupTables<XLEN>> {
         Some(OrTable.into())
@@ -32,7 +36,28 @@ impl Flags for OR {
     }
 }
 
+verus! {
+
+pub open spec fn or_op(x: u64, y: u64) -> u64 {
+    (x | y) as u64
+}
+
+pub open spec fn to_instruction_or_inputs_spec(rs1: u64, rs2: u64, xlen: nat) -> (result: (u64, i128)) {
+    if xlen == 8 {
+        (mask_xlen(rs1, 8), mask_xlen(rs2, 8) as i128)
+    } else if xlen == 32 {
+        (mask_xlen(rs1, 32), mask_xlen(rs2, 32) as i128)
+    } else {
+        (rs1, rs2 as i128)
+    }
+}
+
+}
+
+// verus! {
+
 impl<const XLEN: usize> LookupQuery<XLEN> for RISCVCycle<OR> {
+
     fn to_instruction_inputs(&self) -> (u64, i128) {
         match XLEN {
             #[cfg(test)]
@@ -60,6 +85,8 @@ impl<const XLEN: usize> LookupQuery<XLEN> for RISCVCycle<OR> {
         }
     }
 }
+
+// }
 
 #[cfg(test)]
 mod test {

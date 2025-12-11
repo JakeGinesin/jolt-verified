@@ -6,7 +6,8 @@
     rust-overlay.url = "github:oxalica/rust-overlay";
     rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
     flake-utils.url = "github:numtide/flake-utils";
-    verus-flake.url = "github:JakeGinesin/verus-flake";
+    # verus-flake.url = "github:JakeGinesin/verus-flake";
+    verus-flake.url = "path:/home/synchronous/code/verus-jolt";
   };
 
   outputs = { self, nixpkgs, rust-overlay, flake-utils, verus-flake, ... }@inputs:

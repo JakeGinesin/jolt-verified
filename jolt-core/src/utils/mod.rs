@@ -1,6 +1,8 @@
 use crate::field::{ChallengeFieldOps, JoltField};
 
 use rayon::prelude::*;
+use vstd::prelude::*;
+use interleaving_spec::*;
 
 pub mod accumulation;
 pub mod counters;
@@ -14,6 +16,7 @@ pub mod monitor;
 pub mod profiling;
 pub mod small_scalar;
 pub mod thread;
+pub mod interleaving_spec;
 
 /// Converts an integer value to a bitvector (all values {0,1}) of field elements.
 /// Note: ordering has the MSB in the highest index. All of the following represent the integer 1:
@@ -90,6 +93,8 @@ pub fn mul_0_optimized<F: JoltField>(likely_zero: &F, x: &F) -> F {
     }
 }
 
+verus! {
+
 /// Splits a 128-bit value into two 64-bit values by separating even and odd bits.
 /// The even bits (indices 0,2,4,...) go into the first returned value, and odd bits (indices 1,3,5,...) into the second.
 ///
@@ -102,7 +107,9 @@ pub fn mul_0_optimized<F: JoltField>(likely_zero: &F, x: &F) -> F {
 /// A tuple (x, y) where:
 /// - x contains the bits from even indices (0,2,4,...) compacted into the low 64 bits
 /// - y contains the bits from odd indices (1,3,5,...) compacted into the low 64 bits
-pub fn uninterleave_bits(val: u128) -> (u64, u64) {
+pub fn uninterleave_bits(val: u128) -> (result: (u64, u64))
+    ensures result == spec_uninterleave_bits(val)
+{
     // Isolate even and odd bits.
     let mut x_bits = (val >> 1) & 0x5555_5555_5555_5555_5555_5555_5555_5555;
     let mut y_bits = val & 0x5555_5555_5555_5555_5555_5555_5555_5555;
@@ -120,7 +127,211 @@ pub fn uninterleave_bits(val: u128) -> (u64, u64) {
     y_bits = (y_bits | (y_bits >> 8)) & 0x0000_FFFF_0000_FFFF_0000_FFFF_0000_FFFF;
     y_bits = (y_bits | (y_bits >> 16)) & 0x0000_0000_FFFF_FFFF_0000_0000_FFFF_FFFF;
     y_bits = (y_bits | (y_bits >> 32)) & 0x0000_0000_0000_0000_FFFF_FFFF_FFFF_FFFF;
+    
+    assert(forall|j: nat| j < 64 ==> #[trigger] get_bit_u64(x_bits as u64,j as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),j as u64)) by {
+        assert_forall_by(|j: nat| {
+            requires(j < 64);
+            ensures(#[trigger] get_bit_u64(x_bits as u64,j as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),j as u64));
+            let d = (val >> 1) & 0x5555_5555_5555_5555_5555_5555_5555_5555;
+            let c = (d | (d >> 1)) & 0x3333_3333_3333_3333_3333_3333_3333_3333;
+            let b = (c | (c >> 2)) & 0x0F0F_0F0F_0F0F_0F0F_0F0F_0F0F_0F0F_0F0F;
+            let a = (b | (b >> 4)) & 0x00FF_00FF_00FF_00FF_00FF_00FF_00FF_00FF;
+            let e = (a | (a >> 8)) & 0x0000_FFFF_0000_FFFF_0000_FFFF_0000_FFFF;
+            let f = (e | (e >> 16)) & 0x0000_0000_FFFF_FFFF_0000_0000_FFFF_FFFF;
+            let g = (f | (f >> 32)) & 0x0000_0000_0000_0000_FFFF_FFFF_FFFF_FFFF;
+            let v0 = get_bit_u128(val,(2*j+1) as u128);
+            let ap0 = get_bit_u128(x_bits,j as u128);
+            let x = spec_extract_odd_bits_u128(val);
+            let a0 = get_bit_u64(x,j as u64);
+            spec_extract_odd_bits_u128_correctness(val, j as u128);
+            let jj = j as u128;
+            assert(a0 == v0);
+            assert(a0 == ap0) by (bit_vector)
+                requires 
+                    a0 == v0,
+                    v0 == (0x1u128 & (val >> (2*jj+1)) == 1),
+                    d == ((val >> 1) & 0x5555_5555_5555_5555_5555_5555_5555_5555),
+                    c == (d | (d >> 1)) & 0x3333_3333_3333_3333_3333_3333_3333_3333,
+                    b == (c | (c >> 2)) & 0x0F0F_0F0F_0F0F_0F0F_0F0F_0F0F_0F0F_0F0F,
+                    a == (b | (b >> 4)) & 0x00FF_00FF_00FF_00FF_00FF_00FF_00FF_00FF,
+                    e == (a | (a >> 8)) & 0x0000_FFFF_0000_FFFF_0000_FFFF_0000_FFFF,
+                    f == (e | (e >> 16)) & 0x0000_0000_FFFF_FFFF_0000_0000_FFFF_FFFF,
+                    g == (f | (f >> 32)) & 0x0000_0000_0000_0000_FFFF_FFFF_FFFF_FFFF,
+                    ap0 == (0x1u128 & (g >> (jj)) == 1);
+            casting128_to_64(x_bits, j as u128);
+        });
+    }
+
+    assert(forall|j: nat| j < 64 ==> #[trigger] get_bit_u64(y_bits as u64,j as u64) == get_bit_u64(spec_extract_even_bits_u128(val),j as u64)) by {
+        assert_forall_by(|j: nat| {
+            requires(j < 64);
+            ensures(#[trigger] get_bit_u64(y_bits as u64,j as u64) == get_bit_u64(spec_extract_even_bits_u128(val),j as u64));
+            let d = val & 0x5555_5555_5555_5555_5555_5555_5555_5555;
+            let c = (d | (d >> 1)) & 0x3333_3333_3333_3333_3333_3333_3333_3333;
+            let b = (c | (c >> 2)) & 0x0F0F_0F0F_0F0F_0F0F_0F0F_0F0F_0F0F_0F0F;
+            let a = (b | (b >> 4)) & 0x00FF_00FF_00FF_00FF_00FF_00FF_00FF_00FF;
+            let e = (a | (a >> 8)) & 0x0000_FFFF_0000_FFFF_0000_FFFF_0000_FFFF;
+            let f = (e | (e >> 16)) & 0x0000_0000_FFFF_FFFF_0000_0000_FFFF_FFFF;
+            let g = (f | (f >> 32)) & 0x0000_0000_0000_0000_FFFF_FFFF_FFFF_FFFF;
+            let v0 = get_bit_u128(val,(2*j) as u128);
+            let ap0 = get_bit_u128(y_bits,j as u128);
+            let y = spec_extract_even_bits_u128(val);
+            let a0 = get_bit_u64(y,j as u64);
+            spec_extract_even_bits_u128_correctness(val, j as u128);
+            let jj = j as u128;
+            assert(a0 == v0);
+            assert(a0 == ap0) by (bit_vector)
+                requires 
+                    a0 == v0,
+                    v0 == (0x1u128 & (val >> (2*jj)) == 1),
+                    d == (val & 0x5555_5555_5555_5555_5555_5555_5555_5555),
+                    c == (d | (d >> 1)) & 0x3333_3333_3333_3333_3333_3333_3333_3333,
+                    b == (c | (c >> 2)) & 0x0F0F_0F0F_0F0F_0F0F_0F0F_0F0F_0F0F_0F0F,
+                    a == (b | (b >> 4)) & 0x00FF_00FF_00FF_00FF_00FF_00FF_00FF_00FF,
+                    e == (a | (a >> 8)) & 0x0000_FFFF_0000_FFFF_0000_FFFF_0000_FFFF,
+                    f == (e | (e >> 16)) & 0x0000_0000_FFFF_FFFF_0000_0000_FFFF_FFFF,
+                    g == (f | (f >> 32)) & 0x0000_0000_0000_0000_FFFF_FFFF_FFFF_FFFF,
+                    ap0 == (0x1u128 & (g >> (jj)) == 1);
+            casting128_to_64(y_bits, j as u128);
+        });
+    }
+    proof{
+        assert(get_bit_u64(y_bits as u64,0 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),0 as u64));
+        assert(get_bit_u64(y_bits as u64,1 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),1 as u64));
+        assert(get_bit_u64(y_bits as u64,2 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),2 as u64));
+        assert(get_bit_u64(y_bits as u64,3 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),3 as u64));
+        assert(get_bit_u64(y_bits as u64,4 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),4 as u64));
+        assert(get_bit_u64(y_bits as u64,5 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),5 as u64));
+        assert(get_bit_u64(y_bits as u64,6 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),6 as u64));
+        assert(get_bit_u64(y_bits as u64,7 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),7 as u64));
+        assert(get_bit_u64(y_bits as u64,8 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),8 as u64));
+        assert(get_bit_u64(y_bits as u64,9 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),9 as u64));
+        assert(get_bit_u64(y_bits as u64,10 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),10 as u64));
+        assert(get_bit_u64(y_bits as u64,11 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),11 as u64));
+        assert(get_bit_u64(y_bits as u64,12 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),12 as u64));
+        assert(get_bit_u64(y_bits as u64,13 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),13 as u64));
+        assert(get_bit_u64(y_bits as u64,14 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),14 as u64));
+        assert(get_bit_u64(y_bits as u64,15 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),15 as u64));
+        assert(get_bit_u64(y_bits as u64,16 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),16 as u64));
+        assert(get_bit_u64(y_bits as u64,17 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),17 as u64));
+        assert(get_bit_u64(y_bits as u64,18 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),18 as u64));
+        assert(get_bit_u64(y_bits as u64,19 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),19 as u64));
+        assert(get_bit_u64(y_bits as u64,20 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),20 as u64));
+        assert(get_bit_u64(y_bits as u64,21 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),21 as u64));
+        assert(get_bit_u64(y_bits as u64,22 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),22 as u64));
+        assert(get_bit_u64(y_bits as u64,23 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),23 as u64));
+        assert(get_bit_u64(y_bits as u64,24 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),24 as u64));
+        assert(get_bit_u64(y_bits as u64,25 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),25 as u64));
+        assert(get_bit_u64(y_bits as u64,26 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),26 as u64));
+        assert(get_bit_u64(y_bits as u64,27 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),27 as u64));
+        assert(get_bit_u64(y_bits as u64,28 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),28 as u64));
+        assert(get_bit_u64(y_bits as u64,29 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),29 as u64));
+        assert(get_bit_u64(y_bits as u64,30 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),30 as u64));
+        assert(get_bit_u64(y_bits as u64,31 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),31 as u64));
+        assert(get_bit_u64(y_bits as u64,32 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),32 as u64));
+        assert(get_bit_u64(y_bits as u64,33 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),33 as u64));
+        assert(get_bit_u64(y_bits as u64,34 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),34 as u64));
+        assert(get_bit_u64(y_bits as u64,35 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),35 as u64));
+        assert(get_bit_u64(y_bits as u64,36 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),36 as u64));
+        assert(get_bit_u64(y_bits as u64,37 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),37 as u64));
+        assert(get_bit_u64(y_bits as u64,38 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),38 as u64));
+        assert(get_bit_u64(y_bits as u64,39 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),39 as u64));
+        assert(get_bit_u64(y_bits as u64,40 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),40 as u64));
+        assert(get_bit_u64(y_bits as u64,41 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),41 as u64));
+        assert(get_bit_u64(y_bits as u64,42 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),42 as u64));
+        assert(get_bit_u64(y_bits as u64,43 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),43 as u64));
+        assert(get_bit_u64(y_bits as u64,44 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),44 as u64));
+        assert(get_bit_u64(y_bits as u64,45 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),45 as u64));
+        assert(get_bit_u64(y_bits as u64,46 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),46 as u64));
+        assert(get_bit_u64(y_bits as u64,47 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),47 as u64));
+        assert(get_bit_u64(y_bits as u64,48 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),48 as u64));
+        assert(get_bit_u64(y_bits as u64,49 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),49 as u64));
+        assert(get_bit_u64(y_bits as u64,50 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),50 as u64));
+        assert(get_bit_u64(y_bits as u64,51 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),51 as u64));
+        assert(get_bit_u64(y_bits as u64,52 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),52 as u64));
+        assert(get_bit_u64(y_bits as u64,53 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),53 as u64));
+        assert(get_bit_u64(y_bits as u64,54 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),54 as u64));
+        assert(get_bit_u64(y_bits as u64,55 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),55 as u64));
+        assert(get_bit_u64(y_bits as u64,56 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),56 as u64));
+        assert(get_bit_u64(y_bits as u64,57 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),57 as u64));
+        assert(get_bit_u64(y_bits as u64,58 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),58 as u64));
+        assert(get_bit_u64(y_bits as u64,59 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),59 as u64));
+        assert(get_bit_u64(y_bits as u64,60 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),60 as u64));
+        assert(get_bit_u64(y_bits as u64,61 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),61 as u64));
+        assert(get_bit_u64(y_bits as u64,62 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),62 as u64));
+        assert(get_bit_u64(y_bits as u64,63 as u64) == get_bit_u64(spec_extract_even_bits_u128(val),63 as u64));
+        equality_of_vals_u64(y_bits as u64, spec_extract_even_bits_u128(val));
+
+        assert(get_bit_u64(x_bits as u64,0 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),0 as u64));
+        assert(get_bit_u64(x_bits as u64,1 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),1 as u64));
+        assert(get_bit_u64(x_bits as u64,2 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),2 as u64));
+        assert(get_bit_u64(x_bits as u64,3 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),3 as u64));
+        assert(get_bit_u64(x_bits as u64,4 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),4 as u64));
+        assert(get_bit_u64(x_bits as u64,5 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),5 as u64));
+        assert(get_bit_u64(x_bits as u64,6 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),6 as u64));
+        assert(get_bit_u64(x_bits as u64,7 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),7 as u64));
+        assert(get_bit_u64(x_bits as u64,8 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),8 as u64));
+        assert(get_bit_u64(x_bits as u64,9 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),9 as u64));
+        assert(get_bit_u64(x_bits as u64,10 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),10 as u64));
+        assert(get_bit_u64(x_bits as u64,11 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),11 as u64));
+        assert(get_bit_u64(x_bits as u64,12 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),12 as u64));
+        assert(get_bit_u64(x_bits as u64,13 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),13 as u64));
+        assert(get_bit_u64(x_bits as u64,14 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),14 as u64));
+        assert(get_bit_u64(x_bits as u64,15 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),15 as u64));
+        assert(get_bit_u64(x_bits as u64,16 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),16 as u64));
+        assert(get_bit_u64(x_bits as u64,17 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),17 as u64));
+        assert(get_bit_u64(x_bits as u64,18 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),18 as u64));
+        assert(get_bit_u64(x_bits as u64,19 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),19 as u64));
+        assert(get_bit_u64(x_bits as u64,20 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),20 as u64));
+        assert(get_bit_u64(x_bits as u64,21 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),21 as u64));
+        assert(get_bit_u64(x_bits as u64,22 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),22 as u64));
+        assert(get_bit_u64(x_bits as u64,23 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),23 as u64));
+        assert(get_bit_u64(x_bits as u64,24 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),24 as u64));
+        assert(get_bit_u64(x_bits as u64,25 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),25 as u64));
+        assert(get_bit_u64(x_bits as u64,26 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),26 as u64));
+        assert(get_bit_u64(x_bits as u64,27 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),27 as u64));
+        assert(get_bit_u64(x_bits as u64,28 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),28 as u64));
+        assert(get_bit_u64(x_bits as u64,29 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),29 as u64));
+        assert(get_bit_u64(x_bits as u64,30 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),30 as u64));
+        assert(get_bit_u64(x_bits as u64,31 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),31 as u64));
+        assert(get_bit_u64(x_bits as u64,32 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),32 as u64));
+        assert(get_bit_u64(x_bits as u64,33 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),33 as u64));
+        assert(get_bit_u64(x_bits as u64,34 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),34 as u64));
+        assert(get_bit_u64(x_bits as u64,35 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),35 as u64));
+        assert(get_bit_u64(x_bits as u64,36 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),36 as u64));
+        assert(get_bit_u64(x_bits as u64,37 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),37 as u64));
+        assert(get_bit_u64(x_bits as u64,38 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),38 as u64));
+        assert(get_bit_u64(x_bits as u64,39 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),39 as u64));
+        assert(get_bit_u64(x_bits as u64,40 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),40 as u64));
+        assert(get_bit_u64(x_bits as u64,41 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),41 as u64));
+        assert(get_bit_u64(x_bits as u64,42 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),42 as u64));
+        assert(get_bit_u64(x_bits as u64,43 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),43 as u64));
+        assert(get_bit_u64(x_bits as u64,44 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),44 as u64));
+        assert(get_bit_u64(x_bits as u64,45 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),45 as u64));
+        assert(get_bit_u64(x_bits as u64,46 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),46 as u64));
+        assert(get_bit_u64(x_bits as u64,47 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),47 as u64));
+        assert(get_bit_u64(x_bits as u64,48 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),48 as u64));
+        assert(get_bit_u64(x_bits as u64,49 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),49 as u64));
+        assert(get_bit_u64(x_bits as u64,50 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),50 as u64));
+        assert(get_bit_u64(x_bits as u64,51 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),51 as u64));
+        assert(get_bit_u64(x_bits as u64,52 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),52 as u64));
+        assert(get_bit_u64(x_bits as u64,53 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),53 as u64));
+        assert(get_bit_u64(x_bits as u64,54 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),54 as u64));
+        assert(get_bit_u64(x_bits as u64,55 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),55 as u64));
+        assert(get_bit_u64(x_bits as u64,56 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),56 as u64));
+        assert(get_bit_u64(x_bits as u64,57 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),57 as u64));
+        assert(get_bit_u64(x_bits as u64,58 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),58 as u64));
+        assert(get_bit_u64(x_bits as u64,59 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),59 as u64));
+        assert(get_bit_u64(x_bits as u64,60 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),60 as u64));
+        assert(get_bit_u64(x_bits as u64,61 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),61 as u64));
+        assert(get_bit_u64(x_bits as u64,62 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),62 as u64));
+        assert(get_bit_u64(x_bits as u64,63 as u64) == get_bit_u64(spec_extract_odd_bits_u128(val),63 as u64));
+        equality_of_vals_u64(x_bits as u64, spec_extract_odd_bits_u128(val));
+    }
     (x_bits as u64, y_bits as u64)
+
+}
+
 }
 
 /// Combines two 64-bit values into a single 128-bit value by interleaving their bits.
